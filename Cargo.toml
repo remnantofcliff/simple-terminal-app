@@ -2,6 +2,8 @@
 name = "simple-terminal-app"
 version = "0.0.1"
 edition = "2018"
+description = "A simple tool for creating terminal-based apps that require raw mode and multiple scenes."
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

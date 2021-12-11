@@ -1,7 +1,7 @@
 [package]
 name = "simple-terminal-app"
-version = "0.0.2"
-edition = "2018"
+version = "0.0.3"
+edition = "2021"
 description = "A simple tool for creating terminal-based apps that require raw mode and multiple scenes."
 license = "MIT"
 

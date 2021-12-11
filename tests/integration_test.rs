@@ -1,15 +1,14 @@
-use simple_terminal_app::{app::App, scene::Scene};
+use simple_terminal_app::{app::App, cursor, event::Key, scene::Scene};
 use std::io::Write;
-use termion::event::Key;
-use termion::cursor::DetectCursorPos;
 
 struct TestScene;
 
 impl Scene for TestScene {
     fn init(&self, state: &mut simple_terminal_app::app::State) -> Result<(), std::io::Error> {
-        write!(state.stdout, "123")?;
+        write!(state.stdout, "{}", cursor::SteadyBlock)?;
+
         state.stdout.flush()?;
-        println!("{:?}", state.stdout.cursor_pos()?);
+
         Ok(())
     }
 
@@ -20,19 +19,32 @@ impl Scene for TestScene {
     ) -> Result<(), std::io::Error> {
         match key_event {
             Key::Esc => state.running = false,
+
             Key::Char('p') => {
-                let pos = state.stdout.cursor_pos()?;
+                let pos = state.position()?;
+
                 write!(state.stdout, "{:?}", pos)?;
-                state.stdout.flush()?;
             }
+
+            Key::Char('H') => {
+                write!(state.stdout, "{}", cursor::Show)?;
+            }
+
+            Key::Char('h') => {
+                write!(state.stdout, "{}", cursor::Hide)?;
+            }
+
             Key::Char('s') => {
                 let size = state.size()?;
-                write!(state.stdout, "{:?}", size)?;
-                state.stdout.flush()?;
-            }
-            _ => {}
 
+                write!(state.stdout, "{:?}", size)?;
+            }
+
+            _ => {}
         }
+
+        state.stdout.flush()?;
+
         Ok(())
     }
 }

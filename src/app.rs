@@ -60,6 +60,9 @@ pub struct State {
 }
 
 impl State {
+    pub fn flush(&mut self) -> Result<(), io::Error> {
+        self.stdout.flush()
+    }
     pub fn position(&mut self) -> Result<(u16, u16), io::Error> {
         self.stdout.cursor_pos()
     }

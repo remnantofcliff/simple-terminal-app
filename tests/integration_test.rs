@@ -1,5 +1,5 @@
 use simple_terminal_app::{app::App, scene::Scene};
-use std::io::Write;
+use std::io::{Write, stdout};
 use termion::event::Key;
 use termion::cursor::DetectCursorPos;
 
@@ -18,8 +18,15 @@ impl Scene for TestScene {
         key_event: termion::event::Key,
         state: &mut simple_terminal_app::app::State,
     ) -> Result<(), std::io::Error> {
-        if let Key::Esc = key_event {
-            state.running = false
+        match key_event {
+            Key::Esc => state.running = false,
+            Key::Char('s') => {
+                let pos = state.stdout.cursor_pos()?;
+                write!(state.stdout, "{:?}", pos)?;
+                stdout().flush()?;
+            }
+            _ => {}
+
         }
         Ok(())
     }

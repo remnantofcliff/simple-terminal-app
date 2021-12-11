@@ -6,7 +6,7 @@ use std::{
 };
 use termion::{
     clear, cursor,
-    event::Event,
+    event::Key,
     input::TermRead,
     raw::{IntoRawMode, RawTerminal},
 };
@@ -30,19 +30,17 @@ impl From<(u16, u16)> for Position {
 /// Start the app by running the start(...)-method.
 pub struct App {
     state: State,
-    input_reveiver: Receiver<Event>,
+    input_reveiver: Receiver<Key>,
 }
 
 impl App {
     pub fn start(scene: Box<dyn Scene>) -> Result<(), io::Error> {
-        fn event_thread_spawn(transmitter: mpsc::Sender<Event>) {
+        fn event_thread_spawn(transmitter: mpsc::Sender<Key>) {
             let stdin = io::stdin();
 
             thread::spawn(move || {
-                for event in stdin.lock().events().map(|r| r.unwrap()) {
-                    if let Event::Key(_) = event {
-                        transmitter.send(event).unwrap();
-                    }
+                for event in stdin.keys().map(|r| r.unwrap()) {
+                    transmitter.send(event).unwrap();
                 }
             });
         }
@@ -75,6 +73,8 @@ impl App {
 
         self.state.stdout.flush()?;
 
+        scene.init(&mut self.state)?;
+
         while self.state.running {
             let event = self
                 .input_reveiver
@@ -86,8 +86,6 @@ impl App {
 
         if let Some(scene) = self.state.next_scene.take() {
             self.state.running = true;
-
-            scene.init(&mut self.state)?;
 
             self.run_scene(scene)?;
         }

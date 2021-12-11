@@ -13,7 +13,7 @@ pub struct App {
 
 impl App {
     pub fn start(scene: Box<dyn Scene>) -> Result<(), io::Error> {
-        Self {
+        let mut app = Self {
             state: State {
                 running: true,
 
@@ -21,17 +21,18 @@ impl App {
 
                 next_scene: None,
             },
-        }
-        .run_scene(scene)?;
+        };
+
+        write!(app.state, "{}{}", clear::All, cursor::Goto(1, 1))?;
+
+        app.state.stdout.flush()?;
+
+        app.run_scene(scene)?;
 
         Ok(())
     }
 
-    fn run_scene(&mut self, scene: Box<dyn Scene>) -> Result<(), io::Error> {
-        write!(self.state.stdout, "{}{}", clear::All, cursor::Goto(1, 1))?;
-
-        self.state.stdout.flush()?;
-
+    fn run_scene(&mut self, mut scene: Box<dyn Scene>) -> Result<(), io::Error> {
         scene.init(&mut self.state)?;
 
         for event in stdin().keys().map(|r| r.unwrap()) {

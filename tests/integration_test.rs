@@ -4,7 +4,7 @@ use std::io::Write;
 struct TestScene;
 
 impl Scene for TestScene {
-    fn init(&self, state: &mut simple_terminal_app::app::State) -> Result<(), std::io::Error> {
+    fn init(&mut self, state: &mut simple_terminal_app::app::State) -> Result<(), std::io::Error> {
         write!(state, "{}", cursor::SteadyBlock)?;
 
         state.flush()?;
@@ -13,7 +13,7 @@ impl Scene for TestScene {
     }
 
     fn process_input(
-        &self,
+        &mut self,
         key_event: termion::event::Key,
         state: &mut simple_terminal_app::app::State,
     ) -> Result<(), std::io::Error> {

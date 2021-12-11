@@ -1,7 +1,8 @@
 use crate::scene::Scene;
 use std::io::{self, stdin, Stdout, Write};
 use termion::{
-    clear, cursor::{self, DetectCursorPos},
+    clear,
+    cursor::{self, DetectCursorPos},
     input::TermRead,
     raw::{IntoRawMode, RawTerminal},
 };
@@ -25,6 +26,7 @@ impl App {
 
         Ok(())
     }
+
     fn run_scene(&mut self, scene: Box<dyn Scene>) -> Result<(), io::Error> {
         write!(self.state.stdout, "{}{}", clear::All, cursor::Goto(1, 1))?;
 
@@ -50,23 +52,40 @@ impl App {
     }
 }
 
-/// Represents the global state of the program.
+/// Represents the global state of the app. 
 pub struct State {
-    pub running: bool,
-
-    pub next_scene: Option<Box<dyn Scene>>,
-
-    pub stdout: RawTerminal<Stdout>,
+    running: bool,
+    next_scene: Option<Box<dyn Scene>>,
+    stdout: RawTerminal<Stdout>,
 }
 
 impl State {
-    pub fn flush(&mut self) -> Result<(), io::Error> {
-        self.stdout.flush()
+    /// Stops this scene and starts a new scene.
+    pub fn change_scene(&mut self, scene: Box<dyn Scene>) {
+        self.next_scene = Some(scene);
+
+        self.stop();
     }
+    /// Returns the current position of the cursor.
     pub fn position(&mut self) -> Result<(u16, u16), io::Error> {
         self.stdout.cursor_pos()
     }
+    /// Returns the current size of the terminal.
     pub fn size(&self) -> Result<(u16, u16), io::Error> {
         termion::terminal_size()
+    }
+    /// Stops the scene from running.
+    pub fn stop(&mut self) {
+        self.running = false;
+    }
+}
+
+impl Write for State {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.stdout.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.stdout.flush()
     }
 }

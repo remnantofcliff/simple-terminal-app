@@ -9,4 +9,11 @@ pub mod cursor {
     };
 }
 
-pub use termion::{clear, event};
+pub mod color {
+    pub use termion::color::{
+        AnsiValue, Bg, Black, Blue, Cyan, Fg, Green, LightBlack, LightBlue, LightCyan, LightGreen,
+        LightMagenta, LightRed, LightWhite, LightYellow, Magenta, Red, Reset, White, Yellow,
+    };
+}
+
+pub use termion::{clear, event, style};

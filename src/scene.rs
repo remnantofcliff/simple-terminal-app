@@ -1,5 +1,3 @@
-pub mod helper;
-
 use termion::event::Key;
 
 use crate::app::State;

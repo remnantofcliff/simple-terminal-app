@@ -9,7 +9,7 @@ Uses the [termion](https://lib.rs/crates/termion) rust-crate.
 # Versions
 
 ## v. 0.0.3
-Now re-exports only parts of termion, some important parts are still missing. Reading stdin is no longer in a separate thread, added a few methods for State to ease use.
+Now re-exports only parts of termion, some important parts might still be missing. Reading stdin is no longer in a separate thread so that stdin isn't locked forever. Reworked State to ease use. Also removed the helper module from scene at least for now.
 
 ## v. 0.0.2
 includes termion now in the package, since it's required for using the crate (for now).

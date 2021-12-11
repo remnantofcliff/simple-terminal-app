@@ -1,13 +1,13 @@
-use simple_terminal_app::{app::App, cursor, event::Key, scene::Scene};
+use simple_terminal_app::{app::App, clear, cursor, event::Key, scene::Scene};
 use std::io::Write;
 
 struct TestScene;
 
 impl Scene for TestScene {
     fn init(&self, state: &mut simple_terminal_app::app::State) -> Result<(), std::io::Error> {
-        write!(state.stdout, "{}", cursor::SteadyBlock)?;
+        write!(state, "{}", cursor::SteadyBlock)?;
 
-        state.stdout.flush()?;
+        state.flush()?;
 
         Ok(())
     }
@@ -18,38 +18,42 @@ impl Scene for TestScene {
         state: &mut simple_terminal_app::app::State,
     ) -> Result<(), std::io::Error> {
         match key_event {
-            Key::Esc => state.running = false,
+            Key::Esc => state.stop(),
+
+            Key::Char('c') => {
+                write!(state, "{}{}", clear::All, cursor::Goto(1, 1))?;
+            }
 
             Key::Char('p') => {
                 let pos = state.position()?;
 
-                write!(state.stdout, "{:?}", pos)?;
+                write!(state, "{:?}", pos)?;
             }
 
             Key::Char('H') => {
-                write!(state.stdout, "{}", cursor::Show)?;
+                write!(state, "{}", cursor::Show)?;
             }
 
             Key::Char('h') => {
-                write!(state.stdout, "{}", cursor::Hide)?;
+                write!(state, "{}", cursor::Hide)?;
             }
 
             Key::Char('s') => {
                 let size = state.size()?;
 
-                write!(state.stdout, "{:?}", size)?;
+                write!(state, "{:?}", size)?;
             }
 
             _ => {}
         }
 
-        state.stdout.flush()?;
+        state.flush()?;
 
         Ok(())
     }
 }
 
 #[test]
-fn state_test() {
+fn playground() {
     App::start(Box::new(TestScene)).unwrap();
 }

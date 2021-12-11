@@ -1,27 +1,10 @@
 use crate::scene::Scene;
 use std::io::{self, stdin, Stdout, Write};
 use termion::{
-    clear, cursor,
+    clear, cursor::{self, DetectCursorPos},
     input::TermRead,
     raw::{IntoRawMode, RawTerminal},
 };
-/// Represents a position on the terminal. Upper-left corner equals (1, 1)
-#[derive(Clone, Copy, Debug)]
-pub struct Position {
-    pub x: u16,
-
-    pub y: u16,
-}
-
-impl From<(u16, u16)> for Position {
-    fn from(tuple: (u16, u16)) -> Position {
-        Position {
-            x: tuple.0,
-
-            y: tuple.1,
-        }
-    }
-}
 /// Start the app by running the start(...)-method.
 pub struct App {
     state: State,
@@ -32,8 +15,6 @@ impl App {
         Self {
             state: State {
                 running: true,
-
-                size: termion::terminal_size().unwrap().into(),
 
                 stdout: io::stdout().into_raw_mode()?,
 
@@ -75,7 +56,14 @@ pub struct State {
 
     pub next_scene: Option<Box<dyn Scene>>,
 
-    pub size: Position,
-
     pub stdout: RawTerminal<Stdout>,
+}
+
+impl State {
+    pub fn position(&mut self) -> Result<(u16, u16), io::Error> {
+        self.stdout.cursor_pos()
+    }
+    pub fn size(&self) -> Result<(u16, u16), io::Error> {
+        termion::terminal_size()
+    }
 }

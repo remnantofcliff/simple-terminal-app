@@ -2,7 +2,7 @@ pub mod helper;
 
 use termion::event::Key;
 
-use crate::app::{Position, State};
+use crate::app::State;
 
 pub trait Scene {
     /// Initializes the scene. This method is run once before process_input() starts running.

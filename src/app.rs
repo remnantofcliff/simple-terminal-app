@@ -1,8 +1,11 @@
-use crate::scene::Scene;
-use std::io::{self, stdin, Stdout, Write};
+use crate::{commands::cursor, scene::Scene, Point};
+use std::{
+    fmt::Display,
+    io::{self, stdin, Stdout, Write},
+};
 use termion::{
     clear,
-    cursor::{self, DetectCursorPos},
+    cursor::DetectCursorPos,
     input::TermRead,
     raw::{IntoRawMode, RawTerminal},
 };
@@ -12,6 +15,7 @@ pub struct App {
 }
 
 impl App {
+    /// Creates a new app and runs the scene.
     pub fn start(scene: Box<dyn Scene>) -> Result<(), io::Error> {
         let mut app = Self {
             state: State {
@@ -23,7 +27,11 @@ impl App {
             },
         };
 
-        write!(app.state, "{}{}", clear::All, cursor::Goto(1, 1))?;
+        app.state
+            .command()
+            .append(clear::All)
+            .append(cursor::Goto(Point::new(0, 0)))
+            .execute()?;
 
         app.state.stdout.flush()?;
 
@@ -53,10 +61,12 @@ impl App {
     }
 }
 
-/// Represents the global state of the app. 
+/// Represents the global state of the app.
 pub struct State {
     running: bool,
+
     next_scene: Option<Box<dyn Scene>>,
+
     stdout: RawTerminal<Stdout>,
 }
 
@@ -67,13 +77,33 @@ impl State {
 
         self.stop();
     }
-    /// Returns the current position of the cursor.
-    pub fn position(&mut self) -> Result<(u16, u16), io::Error> {
-        self.stdout.cursor_pos()
+    /// Returns a CommandBuilder that can be used to build and execute commands.
+    pub fn command(&mut self) -> CommandBuilder {
+        CommandBuilder {
+            buffer: Vec::new(),
+
+            parent: self,
+        }
     }
-    /// Returns the current size of the terminal.
-    pub fn size(&self) -> Result<(u16, u16), io::Error> {
-        termion::terminal_size()
+    /// Returns the current position of the cursor. Starts from (0, 0).
+    pub fn position(&mut self) -> Result<Point, io::Error> {
+        let temp = self.cursor_pos()?;
+
+        Ok(Point {
+            x: temp.0 - 1,
+
+            y: temp.1 - 1,
+        })
+    }
+    /// Returns the the lower-right corner point of the terminal.
+    pub fn size(&self) -> Result<Point, io::Error> {
+        let temp = termion::terminal_size()?;
+
+        Ok(Point {
+            x: temp.0 - 1,
+
+            y: temp.1 - 1,
+        })
     }
     /// Stops the scene from running.
     pub fn stop(&mut self) {
@@ -88,5 +118,33 @@ impl Write for State {
 
     fn flush(&mut self) -> io::Result<()> {
         self.stdout.flush()
+    }
+}
+/// Used for building commands. Use the append-method to string commands together and execute when
+/// ready. Executing doesn't flush stdout however, so you need to do state.flush() afterwards, when
+/// you want.
+pub struct CommandBuilder<'a> {
+    buffer: Vec<String>,
+
+    parent: &'a mut State,
+}
+
+impl<'a> CommandBuilder<'a> {
+    /// Append a new command. Commands must implement Display. Could also just be a string or a
+    /// number, for example.
+    pub fn append<D: Display>(&mut self, command: D) -> &mut Self {
+        self.buffer.push(command.to_string());
+
+        self
+    }
+    /// Execute the given command.
+    pub fn execute(&mut self) -> Result<usize, io::Error> {
+        self.parent.write(
+            &self
+                .buffer
+                .iter()
+                .flat_map(|string| string.as_bytes().to_vec())
+                .collect::<Vec<u8>>(),
+        )
     }
 }

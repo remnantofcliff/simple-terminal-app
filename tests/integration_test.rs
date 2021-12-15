@@ -1,11 +1,21 @@
-use simple_terminal_app::{app::App, clear, cursor, event::Key, scene::Scene};
+use simple_terminal_app::{
+    app::App,
+    commands::{clear, cursor},
+    event::Key,
+    scene::Scene,
+    Point,
+};
 use std::io::Write;
 
 struct TestScene;
 
 impl Scene for TestScene {
     fn init(&mut self, state: &mut simple_terminal_app::app::State) -> Result<(), std::io::Error> {
-        write!(state, "{}", cursor::SteadyBlock)?;
+        state
+            .command()
+            .append("Hello!")
+            .append(cursor::SteadyBlock)
+            .execute()?;
 
         state.flush()?;
 
@@ -21,27 +31,31 @@ impl Scene for TestScene {
             Key::Esc => state.stop(),
 
             Key::Char('c') => {
-                write!(state, "{}{}", clear::All, cursor::Goto(1, 1))?;
+                state
+                    .command()
+                    .append(clear::All)
+                    .append(cursor::Goto(Point::new(0, 0)))
+                    .execute()?;
             }
 
             Key::Char('p') => {
                 let pos = state.position()?;
 
-                write!(state, "{:?}", pos)?;
+                state.command().append(pos).execute()?;
             }
 
             Key::Char('H') => {
-                write!(state, "{}", cursor::Show)?;
+                state.command().append(cursor::Show).execute()?;
             }
 
             Key::Char('h') => {
-                write!(state, "{}", cursor::Hide)?;
+                state.command().append(cursor::Hide).execute()?;
             }
 
             Key::Char('s') => {
                 let size = state.size()?;
 
-                write!(state, "{:?}", size)?;
+                state.command().append(size).execute()?;
             }
 
             _ => {}

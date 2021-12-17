@@ -36,12 +36,12 @@ pub mod commands {
     pub use termion::{clear, style};
 }
 /// A point in the terminal. Starts from (0, 0)
+#[derive(Clone, Copy)]
 pub struct Point {
-    x: u16,
+    pub x: u16,
 
-    y: u16,
+    pub y: u16,
 }
-
 impl Point {
     // Creates a new point. Upper-left corner is (0, 0) and lower-right is state.size()
     pub fn new(x: u16, y: u16) -> Self {
@@ -53,7 +53,7 @@ use std::fmt::Display;
 
 impl Display for Point {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {})", self.x, self.y)
+        write!(f, "{}, {}", self.x, self.y)
     }
 }
 

@@ -43,6 +43,7 @@ name = "simple-terminal-app"
 version = "0.0.4"
 dependencies = [
  "termion",
+ "thread_tryjoin",
 ]
 
 [[package]]
@@ -55,4 +56,13 @@ dependencies = [
  "numtoa",
  "redox_syscall",
  "redox_termios",
+]
+
+[[package]]
+name = "thread_tryjoin"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff22652fd908448726e796901aca371c4b2137a3633f33bf4ddf7c6e5333906a"
+dependencies = [
+ "libc",
 ]

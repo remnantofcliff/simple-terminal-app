@@ -8,6 +8,9 @@ Uses the [termion](https://lib.rs/crates/termion) rust-crate.
 
 # Versions
 
+## 0.1.1
+Updated crates.
+
 ## 0.1.0
 Pretty much everything has changed. Now scenes have `update(...)` methods that get called independently from user input, if one chooses to use it. Most functions no longer return a `Result<>` type any more.
 

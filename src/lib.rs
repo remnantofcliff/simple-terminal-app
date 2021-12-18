@@ -1,9 +1,12 @@
 /// Module that contains the app and state. The app can be started from app::App::start.
 pub mod app;
+
 /// Module that contains the Scene-trait that is needed for creating scenes for the app.
 pub mod scene;
+
 /// Contains all the terminal commands as structs. Command.to_string() generates the ANSI escape code.
 pub mod commands {
+
     /// Manipulating the cursor.
     pub mod cursor {
 
@@ -24,6 +27,7 @@ pub mod commands {
             }
         }
     }
+
     /// Module for manipulating terminal colors.
     pub mod color {
         pub use termion::color::{
@@ -35,6 +39,7 @@ pub mod commands {
 
     pub use termion::{clear, style};
 }
+
 /// A point in the terminal. Starts from (0, 0)
 #[derive(Clone, Copy)]
 pub struct Point {
@@ -42,6 +47,7 @@ pub struct Point {
 
     pub y: u16,
 }
+
 impl Point {
     // Creates a new point. Upper-left corner is (0, 0) and lower-right is state.size()
     pub fn new(x: u16, y: u16) -> Self {
@@ -56,6 +62,5 @@ impl Display for Point {
         write!(f, "({}, {})", self.x, self.y)
     }
 }
-
 
 pub use termion::event;

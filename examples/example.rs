@@ -25,7 +25,7 @@ impl Scene for TestScene {
         match key_event {
             Key::Esc => state.stop(),
             Key::Char('\n') => {
-                let pos = state.position();
+                let pos = state.cursor_position;
 
                 state
                     .command()
@@ -38,28 +38,16 @@ impl Scene for TestScene {
                 .append(clear::All)
                 .append(cursor::Goto(Point::new(0, 0)))
                 .execute(),
-
             Key::Char('p') => {
-                let pos = state.position();
+                let pos = state.cursor_position;
 
                 state.command().append(pos).execute();
             }
 
-            Key::Char('H') => {
-                state.command().append(cursor::Show).execute();
-            }
-
-            Key::Char('h') => {
-                state.command().append(cursor::Hide).execute();
-            }
-
-            Key::Char('m') => {
-                state.command().append("message").execute();
-            }
-
-            Key::Char('q') => {
-                state.change_scene(Box::new(QuitScene));
-            }
+            Key::Char('H') => state.command().append(cursor::Show).execute(),
+            Key::Char('h') => state.command().append(cursor::Hide).execute(),
+            Key::Char('m') => state.command().append("message ").execute(),
+            Key::Char('q') => state.change_scene(Box::new(QuitScene)),
 
             Key::Char('s') => {
                 let size = state.size();
@@ -75,18 +63,24 @@ impl Scene for TestScene {
 
     fn update(&mut self, state: &mut app::State) {
         let size = state.size();
-        let pos = state.position();
+
+        let pos = state.cursor_position;
+
         let write_pos = Point::new(size.x - pos.to_string().len() as u16 - 1, size.y);
+
         state
             .command()
             .append(cursor::Save)
             .append(cursor::Goto(write_pos))
+            .append(clear::CurrentLine)
             .append(color::Fg(color::AnsiValue(self.color)))
             .append(pos)
             .append(color::Fg(color::Reset))
             .append(cursor::Restore)
             .execute();
+
         state.flush();
+
         self.color = self.color.overflowing_add(1).0;
     }
 }
@@ -115,5 +109,5 @@ impl Scene for QuitScene {
 }
 
 fn main() {
-    app::start(Box::new(TestScene { color: 0 }), Some((20, 20)));
+    app::start(Box::new(TestScene { color: 0 }), Some(20));
 }

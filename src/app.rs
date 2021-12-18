@@ -2,7 +2,7 @@ use crate::{commands::cursor, scene::Scene, Point};
 use std::{
     fmt::Display,
     io::{self, stdin, Stdout, Write},
-    sync::{self, Arc, Mutex},
+    sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
@@ -12,33 +12,26 @@ use termion::{
     input::TermRead,
     raw::{IntoRawMode, RawTerminal},
 };
-
-enum AppEvent {
-    Flush,
-    RequestPos,
-    Shutdown,
-    Write(Vec<u8>),
-}
-
-enum StateEvent {
-    Point(u16, u16),
-}
-/// Creates a new app and runs the scene from the first argument.
-pub fn start(mut scene: Box<dyn Scene + Send>, input_and_update_time_millis: Option<(u64, u64)>) {
-    let stdout = &mut io::stdout()
+/// Creates a new app and runs the scene from the first argument. `update_time_millis` can be
+/// `None` if one doesn't want to use the update method of the scene and only update the scene on
+/// input. Otherwise `update_time_millis` should be the time in milliseconds between calling the
+/// update method.
+pub fn start(mut scene: Box<dyn Scene + Send>, update_time_millis: Option<u64>) {
+    let mut stdout = io::stdout()
         .into_raw_mode()
         .expect("Could not switch terminal to raw mode.");
 
-    let (state_transmitter, app_receiver) = sync::mpsc::channel();
-
-    let (app_transmitter, state_receiver) = sync::mpsc::channel();
-
     let mut state = State {
-        cursor_position: Point::new(0, 0),
+        cursor_position: {
+            let temp = stdout.cursor_pos().expect("Could not get cursor position");
+            Point {
+                x: temp.0 - 1,
+                y: temp.1 - 1,
+            }
+        },
         next_scene: None,
         running: true,
-        rx: state_receiver,
-        tx: state_transmitter,
+        stdout,
     };
 
     state
@@ -47,12 +40,11 @@ pub fn start(mut scene: Box<dyn Scene + Send>, input_and_update_time_millis: Opt
         .append(cursor::Goto(Point::new(0, 0)))
         .execute();
 
-    stdout.flush().expect("Could not flush stdout");
+    state.flush();
 
     scene.init(&mut state);
 
-    if let Some(input_update_time) = input_and_update_time_millis {
-        assert!(input_update_time.0 > 0);
+    if let Some(update_time) = update_time_millis {
         let scene_mutex_input = Arc::new(Mutex::new(scene));
 
         let state_mutex_input = Arc::new(Mutex::new(state));
@@ -61,107 +53,68 @@ pub fn start(mut scene: Box<dyn Scene + Send>, input_and_update_time_millis: Opt
 
         let state_mutex_update = state_mutex_input.clone();
 
-        thread::Builder::new()
-            .name("Input thread".to_string())
-            .stack_size(1)
-            .spawn(move || loop {
-                thread::sleep(Duration::from_millis(input_update_time.0));
+        thread::spawn(move || loop {
+            thread::sleep(Duration::from_millis(update_time));
 
-                for event in stdin().keys().map(|r| r.unwrap()) {
-                    let mut scene_lock = scene_mutex_input.lock().unwrap();
+            scene_mutex_update
+                .lock()
+                .unwrap()
+                .update(&mut state_mutex_update.lock().unwrap());
+        });
 
-                    let mut state_lock = state_mutex_input.lock().unwrap();
+        for event in stdin().keys().map(|r| r.unwrap()) {
+            let mut scene_lock = scene_mutex_input.lock().unwrap();
 
-                    scene_lock.process_input(&mut state_lock, event);
+            let mut state_lock = state_mutex_input.lock().unwrap();
 
-                    state_lock.send_command(AppEvent::RequestPos);
+            scene_lock.process_input(&mut state_lock, event);
 
-                    state_lock.cursor_position = match state_lock.rx.recv().unwrap() {
-                        StateEvent::Point(x, y) => Point { x: x - 1, y: y - 1 },
-                    };
+            let temp = state_lock
+                .stdout
+                .cursor_pos()
+                .expect("Could not get cursor position");
 
-                    if !state_lock.running {
-                        if let Some(next_scene) = state_lock.next_scene.take() {
-                            state_lock.running = true;
+            state_lock.cursor_position = Point {
+                x: temp.0 - 1,
+                y: temp.1 - 1,
+            };
 
-                            *scene_lock = next_scene;
+            if !state_lock.running {
+                if let Some(next_scene) = state_lock.next_scene.take() {
+                    state_lock.running = true;
 
-                            scene_lock.init(&mut state_lock);
-                        } else {
-                            state_lock.send_command(AppEvent::Shutdown);
-                        }
-                    }
+                    *scene_lock = next_scene;
+
+                    scene_lock.init(&mut state_lock);
+                } else {
+                    break;
                 }
-            })
-            .expect("Failed to create input thread");
-
-        thread::Builder::new()
-            .name("Update thread".to_string())
-            .stack_size(1)
-            .spawn(move || loop {
-                thread::sleep(Duration::from_millis(input_update_time.1));
-
-                scene_mutex_update
-                    .lock()
-                    .unwrap()
-                    .update(&mut state_mutex_update.lock().unwrap());
-            })
-            .expect("Could not create update thread.");
-
-        main_thread_loop(app_receiver, stdout, app_transmitter);
-    } else {
-        thread::Builder::new()
-            .name("Input thread".to_string())
-            .stack_size(1)
-            .spawn(move || {
-                for event in stdin().keys().map(|r| r.unwrap()) {
-                    scene.process_input(&mut state, event);
-
-                    if !state.running {
-                        if let Some(next_scene) = state.next_scene.take() {
-                            state.running = true;
-
-                            scene = next_scene;
-
-                            scene.init(&mut state);
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            })
-            .unwrap();
-
-        main_thread_loop(app_receiver, stdout, app_transmitter);
-    }
-}
-
-fn main_thread_loop(
-    receiver: sync::mpsc::Receiver<AppEvent>,
-    stdout: &mut RawTerminal<Stdout>,
-    transmitter: sync::mpsc::Sender<StateEvent>,
-) {
-    for event in receiver.iter() {
-        match event {
-            AppEvent::Flush => stdout.flush().expect("Could not flush stdout"),
-            AppEvent::RequestPos => {
-                let pos = stdout.cursor_pos().expect("Could not get cursor position.");
-                transmitter.send(StateEvent::Point(pos.0, pos.1)).unwrap();
             }
-            AppEvent::Shutdown => break,
-            AppEvent::Write(buffer) => stdout
-                .write_all(buffer.as_slice())
-                .expect("Could not write buffer to stdout"),
+        }
+    } else {
+        for event in stdin().keys().map(|r| r.unwrap()) {
+            scene.process_input(&mut state, event);
+
+            if !state.running {
+                if let Some(next_scene) = state.next_scene.take() {
+                    state.running = true;
+
+                    scene = next_scene;
+
+                    scene.init(&mut state);
+                } else {
+                    break;
+                }
+            }
         }
     }
 }
 /// Represents the global state of the app.
 pub struct State {
-    cursor_position: Point,
+    pub cursor_position: Point,
     next_scene: Option<Box<dyn Scene + Send>>,
     running: bool,
-    rx: sync::mpsc::Receiver<StateEvent>,
-    tx: sync::mpsc::Sender<AppEvent>,
+    stdout: RawTerminal<Stdout>,
 }
 
 impl State {
@@ -181,11 +134,7 @@ impl State {
     /// Flush the buffer. Has to be called after executing a command for any change to take place
     /// in the terminal.
     pub fn flush(&mut self) {
-        self.send_command(AppEvent::Flush);
-    }
-    /// Returns the current position of the cursor. Starts from (0, 0).
-    pub fn position(&mut self) -> Point {
-        self.cursor_position
+        self.stdout.flush().expect("Could not flush stdout");
     }
     /// Returns the the lower-right corner point of the terminal.
     pub fn size(&self) -> Point {
@@ -196,10 +145,6 @@ impl State {
     /// Stops the scene from running.
     pub fn stop(&mut self) {
         self.running = false;
-    }
-
-    fn send_command(&mut self, command: AppEvent) {
-        self.tx.send(command).unwrap();
     }
 }
 /// Used for building commands. Use the append-method to string commands together and execute when
@@ -220,11 +165,15 @@ impl<'a> CommandBuilder<'a> {
     }
     /// Execute the given command.
     pub fn execute(&mut self) {
-        self.parent.send_command(AppEvent::Write(
-            self.buffer
-                .iter()
-                .flat_map(|string| string.as_bytes().to_vec())
-                .collect::<Vec<u8>>(),
-        ));
+        self.parent
+            .stdout
+            .write_all(
+                self.buffer
+                    .iter()
+                    .flat_map(|string| string.as_bytes().to_vec())
+                    .collect::<Vec<u8>>()
+                    .as_slice(),
+            )
+            .expect("Could not write buffer to stdout");
     }
 }

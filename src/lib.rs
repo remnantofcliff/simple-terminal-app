@@ -53,7 +53,7 @@ use std::fmt::Display;
 
 impl Display for Point {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}, {}", self.x, self.y)
+        write!(f, "({}, {})", self.x, self.y)
     }
 }
 
